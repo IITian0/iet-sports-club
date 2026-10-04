@@ -235,7 +235,7 @@
   }
   .sport .ic svg{width:30px; height:30px}
   .sport .cat{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dim)}
-  .sport .go{
+  .sport .go{cursor:pointer; text-decoration:none;
     margin-top:14px; font-size:13px; font-weight:600; color:var(--gold);
     display:flex; align-items:center; gap:6px; opacity:.85;
   }
@@ -820,7 +820,7 @@
     <div class="wrap">
       <span class="eyebrow reveal">Get on the team</span>
       <h2 class="sec reveal">Membership</h2>
-      <p class="sec-sub reveal" style="margin-bottom:26px">Fill this in to join. Your entry is saved in this browser only — nothing is sent anywhere.</p>
+      <p class="sec-sub reveal" style="margin-bottom:26px">Interested in a sport? Pick it below — or tap <b>Join Football</b> on any sport card above and it fills in automatically.</p>
       <div class="grid" style="grid-template-columns:1.15fr .85fr" id="joinGrid">
         <div class="card reveal">
           <form class="form-grid" id="regForm" autocomplete="off">
@@ -1179,7 +1179,7 @@ function renderSports(cat){
       <span class="cat">${s.cat} · ${s.team}</span>
       <h3 style="margin-top:6px">${s.name}</h3>
       <p>${s.line}</p>
-      <div class="go">Get involved <span>→</span></div>
+      <a class="go" href="#join" data-sport="${s.name}">Join ${s.name} <span>→</span></a>
     </article>`).join('');
 }
 renderSports('All');
@@ -1190,6 +1190,15 @@ $('#filter').addEventListener('click', e=>{
 });
 /* sport select options */
 $('#spSelect').innerHTML = '<option value="">Select sport</option>'+SPORTS.map(s=>`<option>${s.name}</option>`).join('');
+
+/* clicking a sport card pre-selects that sport in the join form */
+$('#sportsGrid').addEventListener('click', e=>{
+  const a = e.target.closest('[data-sport]'); if(!a) return;
+  const sel = document.getElementById('spSelect');
+  if(sel){ sel.value = a.dataset.sport; }
+  const t = document.getElementById('toast');
+  if(t){ t.textContent = a.dataset.sport+' selected — finish the form below to join.'; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'), 4000); }
+});
 
 /* ============ EVENTS ============ */
 const now = new Date();
@@ -1302,13 +1311,26 @@ function renderM(){
       <small>${esc(x.enroll)}</small></div>`).join('');
 }
 renderM();
-$('#regForm').addEventListener('submit',e=>{
+$('#regForm').addEventListener('submit', async function(e){
   e.preventDefault(); const f=e.target;
-  const entry={name:f.name.value.trim(),enroll:f.enroll.value.trim(),branch:f.branch.value,year:f.year.value,sport:f.sport.value,phone:f.phone.value.trim(),msg:f.msg.value.trim()};
+  const entry={type:'Membership', name:f.name.value.trim(), enroll:f.enroll.value.trim(),
+               branch:f.branch.value, year:f.year.value, sport:f.sport.value,
+               phone:f.phone.value.trim(), msg:f.msg.value.trim(), at:new Date().toISOString()};
   if(!entry.name||!entry.enroll||!entry.sport) return;
+  const t=$('#toast');
+  let sent=false;
+  if(typeof REG_ENDPOINT!=='undefined' && REG_ENDPOINT){
+    try{
+      await fetch(REG_ENDPOINT,{method:'POST',mode:'no-cors',
+        headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(entry)});
+      sent=true;
+    }catch(err){ sent=false; }
+  }
   const m=getM(); m.push(entry); setM(m); f.reset(); renderM();
-  const t=$('#toast'); t.textContent=`Registered — ${entry.name.split(' ')[0]}, you're on the club list.`;
-  t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),4000);
+  t.textContent = sent
+    ? ('Welcome '+entry.name.split(' ')[0]+'! Your '+entry.sport+' membership has been sent to the club.')
+    : ('Saved on this device. (Organiser: connect the Google Sheet to collect all members.)');
+  t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),5000);
 });
 
 /* ============ THEME ============ */
@@ -1517,7 +1539,7 @@ const REG_ENDPOINT = "";
 document.getElementById('eventForm').addEventListener('submit', async function(e){
   e.preventDefault();
   const f = e.target;
-  const entry = { event:f.event.value, name:f.name.value.trim(), enroll:f.enroll.value.trim(),
+  const entry = { type:'Event', event:f.event.value, name:f.name.value.trim(), enroll:f.enroll.value.trim(),
                   branch:f.branch.value, year:f.year.value, phone:f.phone.value.trim(), team:f.team.value.trim(),
                   at:new Date().toISOString() };
   if(!entry.name || !entry.event) return;
