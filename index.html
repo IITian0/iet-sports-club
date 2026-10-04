@@ -373,7 +373,7 @@
   .credits li{margin-bottom:5px}
   .credits a{color:var(--gold); text-decoration:underline}
 
-  nav.links a{font-size:13px; padding:9px 10px}
+  nav.links a{font-size:12.5px; padding:9px 9px}
   .about-grid{display:grid; grid-template-columns:1.05fr .95fr; gap:26px; align-items:start}
   @media (max-width:880px){.about-grid{grid-template-columns:1fr}}
   .feature{display:flex; gap:14px; align-items:flex-start; padding:18px}
@@ -486,6 +486,7 @@
       <a href="#team">Team</a>
       <a href="#faq">FAQ</a>
       <a href="#join">Join</a>
+      <a href="#register">Register</a>
       <a href="#contact">Contact</a>
     </nav>
     <div class="nav-right">
@@ -862,6 +863,50 @@
           <div class="members" id="memberList"></div>
           <p class="mini" id="noMembers" style="color:var(--text-dim); font-size:13.5px; margin-top:10px">No members yet — be the first to register.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- EVENT REGISTRATION -->
+  <section id="register">
+    <div class="wrap" style="max-width:900px">
+      <span class="eyebrow reveal">Sign up to play</span>
+      <h2 class="sec reveal">Event registration</h2>
+      <p class="sec-sub reveal" style="margin-bottom:22px">Registering for a tournament, league or trial? Fill this in. Every entry is sent to the club's records so the organisers can see the full list.</p>
+      <div class="card reveal">
+        <form class="form-grid" id="eventForm" autocomplete="off">
+          <div class="field full"><label for="evEvent">Which event are you registering for?</label>
+            <select id="evEvent" name="event" required><option value="">Select an event</option></select>
+          </div>
+          <div class="field"><label for="evName">Full name</label><input id="evName" name="name" required placeholder="e.g. Gaurav Kumar"></div>
+          <div class="field"><label for="evEnroll">Enrollment no.</label><input id="evEnroll" name="enroll" required placeholder="IET/2026/1234"></div>
+          <div class="field"><label for="evBranch">Branch</label>
+            <select id="evBranch" name="branch" required>
+              <option value="">Select branch</option>
+              <option>Computer Science &amp; Engineering</option>
+              <option>Information Technology</option>
+              <option>Electronics &amp; Communication</option>
+              <option>Electrical Engineering</option>
+              <option>Mechanical Engineering</option>
+              <option>Civil Engineering</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field"><label for="evYear">Year</label>
+            <select id="evYear" name="year" required>
+              <option value="">Select year</option>
+              <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option>
+            </select>
+          </div>
+          <div class="field"><label for="evPhone">Phone / WhatsApp</label><input id="evPhone" name="phone" inputmode="tel" required placeholder="10-digit number"></div>
+          <div class="field"><label for="evTeam">Team name (optional)</label><input id="evTeam" name="team" placeholder="For team events"></div>
+          <div class="field full">
+            <button class="btn btn-primary" type="submit">Submit registration</button>
+            <div class="toast" id="evToast">Registered! Your entry has been sent to the organisers.</div>
+          </div>
+        </form>
+        <p class="mini" id="regNote" style="color:var(--text-dim); font-size:13px; margin-top:12px"></p>
       </div>
     </div>
   </section>
@@ -1281,7 +1326,7 @@ $('#theme').addEventListener('click',()=>applyTheme(document.documentElement.dat
 /* ============ NAV ============ */
 $('#burger').addEventListener('click',()=>$('#links').classList.toggle('open'));
 $$('#links a').forEach(a=>a.addEventListener('click',()=>$('#links').classList.remove('open')));
-const sections = ['home','about','sports','events','schedule','gallery','honours','records','team','notices','faq','sponsors','join','contact'];
+const sections = ['home','about','sports','events','schedule','gallery','honours','records','team','notices','faq','sponsors','join','register','contact'];
 const spy = new IntersectionObserver(es=>{
   es.forEach(e=>{ if(e.isIntersecting){
     $$('#links a').forEach(a=>a.classList.toggle('active', a.getAttribute('href')==='#'+e.target.id));
@@ -1449,6 +1494,51 @@ $('#igGrid').innerHTML = IG.map(g=>`
   // animate bars in
   requestAnimationFrame(()=>{ document.querySelectorAll('.poll-opt .bar i').forEach(el=>{ const w=el.style.width; el.style.width='0'; requestAnimationFrame(()=>el.style.width=w); }); });
 })();
+
+
+/* ============ EVENT REGISTRATION ============ */
+/* Paste your Google Apps Script Web-app URL below (see the setup guide).
+   Until then, entries are saved on this device only. */
+const REG_ENDPOINT = "";
+
+/* fill the event dropdown from the events list */
+(function(){
+  const sel = document.getElementById('evEvent');
+  if(sel){
+    EVENTS.forEach(function(e){ const o=document.createElement('option'); o.textContent=e.title; sel.appendChild(o); });
+    const o=document.createElement('option'); o.textContent='Other / new game'; sel.appendChild(o);
+  }
+  const note = document.getElementById('regNote');
+  if(note) note.textContent = REG_ENDPOINT
+    ? 'Entries are sent straight to the club\u2019s Google Sheet.'
+    : 'Note for the organiser: connect a Google Sheet (see guide) so every registration reaches one place.';
+})();
+
+document.getElementById('eventForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const f = e.target;
+  const entry = { event:f.event.value, name:f.name.value.trim(), enroll:f.enroll.value.trim(),
+                  branch:f.branch.value, year:f.year.value, phone:f.phone.value.trim(), team:f.team.value.trim(),
+                  at:new Date().toISOString() };
+  if(!entry.name || !entry.event) return;
+  const t = document.getElementById('evToast');
+  let saved = false;
+  if(REG_ENDPOINT){
+    try{
+      await fetch(REG_ENDPOINT, { method:'POST', mode:'no-cors',
+        headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(entry) });
+      saved = true;
+    }catch(err){ saved = false; }
+  }
+  if(!saved){ // fallback: keep it locally so nothing is lost
+    try{ const k='iet_event_regs_v1'; const a=JSON.parse(localStorage.getItem(k))||[]; a.push(entry); localStorage.setItem(k, JSON.stringify(a)); }catch(err){}
+  }
+  t.textContent = saved
+    ? 'Registered! '+entry.name.split(' ')[0]+', your entry has been sent to the organisers.'
+    : 'Saved on this device. (Organiser: connect the Google Sheet to collect all entries.)';
+  t.classList.add('on'); f.reset();
+  setTimeout(function(){ t.classList.remove('on'); }, 5000);
+});
 
 $('#yearNow').textContent = new Date().getFullYear();
 </script>
